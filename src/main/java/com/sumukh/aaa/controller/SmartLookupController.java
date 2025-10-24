@@ -129,16 +129,16 @@ public class SmartLookupController {
 
   private AirportLookupResponse lookupAirport(String code) {
     Airport ap = airportRepo.findByIataCode(code.toUpperCase())
-        .orElseThrow(() -> new EntityNotFoundException("Airport not found: " + code));
+            .orElseThrow(() -> new EntityNotFoundException("Airport not found: " + code));
 
     List<String> runways = runwayRepo.findByAirport(ap).stream()
-        .map(Runway::getIdentifier).toList();
+            .map(Runway::getIdentifier).toList();
 
     List<String> airlines = flightRepo.findAirlinesServing(ap).stream()
-        .filter(Objects::nonNull)
-        .map(Airline::getName)
-        .sorted(String.CASE_INSENSITIVE_ORDER)
-        .toList();
+            .filter(Objects::nonNull)
+            .map(Airline::getName)
+            .sorted(String.CASE_INSENSITIVE_ORDER)
+            .toList();
 
 //    List<String> destinations = flightRepo.findConnectedAirports(ap).stream()
 //        .filter(Objects::nonNull)
@@ -150,9 +150,12 @@ public class SmartLookupController {
             .filter(Objects::nonNull)
             .sorted(String.CASE_INSENSITIVE_ORDER)
             .toList();
-    String nowLocal = ZonedDateTime
-            .now(ZoneId.of(ap.getTimeZoneId()))
-            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+    ZoneId zone = ZoneId.of(ap.getTimeZoneId());
+    ZonedDateTime now = ZonedDateTime.now(zone);
+
+// Format: "Saturday, 25 Oct 2025, 03:40 AM IST (Asia/Kolkata)"
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy, hh:mm a z '('VV')'", Locale.ENGLISH);
+    String nowLocal = now.format(fmt);
     return new AirportLookupResponse(ap.getIataCode(), ap.getCity(), runways, airlines, destinations, nowLocal);
   }
 
