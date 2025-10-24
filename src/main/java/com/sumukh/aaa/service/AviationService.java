@@ -3,10 +3,13 @@ package com.sumukh.aaa.service;
 import com.sumukh.aaa.dto.*;
 import com.sumukh.aaa.model.*;
 import com.sumukh.aaa.repository.*;
+import com.sumukh.aaa.utils.TimeZoneResolver;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static com.sumukh.aaa.utils.Normalizers.iata;
 
 @Service @RequiredArgsConstructor @Transactional
 public class AviationService {
@@ -18,17 +21,30 @@ public class AviationService {
 
   // Airports
   public Airport createAirport(CreateAirportDTO dto) {
-    airportRepo.findByIataCode(dto.iataCode()).ifPresent(a -> {
-      throw new IllegalArgumentException("Airport IATA already exists: " + dto.iataCode());
+    String iataCode = iata(dto.iataCode());
+    // Required + range validation
+    if (dto.latitude() == null || dto.longitude() == null)
+      throw new IllegalArgumentException("Latitude/Longitude must be provided");
+    if (dto.latitude() < -90 || dto.latitude() > 90)
+      throw new IllegalArgumentException("Latitude out of range (-90..90)");
+    if (dto.longitude() < -180 || dto.longitude() > 180)
+      throw new IllegalArgumentException("Longitude out of range (-180..180)");
+
+    airportRepo.findByIataCode(iataCode).ifPresent(a -> {
+      throw new IllegalArgumentException("Airport IATA already exists: " + iataCode);
     });
+
+    // Resolve time zone (IANA or offset, or auto from lat/lon if blank)
+    String tzId = TimeZoneResolver.resolve(dto.timeZoneId(), dto.latitude(), dto.longitude());
+
     return airportRepo.save(Airport.builder()
-      .iataCode(dto.iataCode().toUpperCase())
-      .city(dto.city())
-      .address(dto.address())
-      .latitude(dto.latitude())
-      .longitude(dto.longitude())
-      .timeZoneId(dto.timeZoneId())
-      .build());
+            .iataCode(iataCode)
+            .city(dto.city().trim())
+            .address(dto.address().trim())
+            .latitude(dto.latitude())
+            .longitude(dto.longitude())
+            .timeZoneId(tzId)
+            .build());
   }
 
   // Aircrafts

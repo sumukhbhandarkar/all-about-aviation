@@ -138,12 +138,16 @@ public class SmartLookupController {
         .sorted(String.CASE_INSENSITIVE_ORDER)
         .toList();
 
-    List<String> destinations = flightRepo.findConnectedAirports(ap).stream()
-        .filter(Objects::nonNull)
-        .map(Airport::getIataCode)
-        .sorted(String.CASE_INSENSITIVE_ORDER)
-        .toList();
+//    List<String> destinations = flightRepo.findConnectedAirports(ap).stream()
+//        .filter(Objects::nonNull)
+//        .map(Airport::getIataCode)
+//        .sorted(String.CASE_INSENSITIVE_ORDER)
+//        .toList();
 
+    List<String> destinations = flightRepo.findConnectedIataCodes(ap).stream()
+            .filter(Objects::nonNull)
+            .sorted(String.CASE_INSENSITIVE_ORDER)
+            .toList();
     return new AirportLookupResponse(ap.getIataCode(), ap.getCity(), runways, airlines, destinations);
   }
 

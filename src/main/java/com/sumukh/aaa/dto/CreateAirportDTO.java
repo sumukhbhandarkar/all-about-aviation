@@ -10,5 +10,5 @@ public record CreateAirportDTO(
   @NotBlank String address,
   @NotNull Double latitude,
   @NotNull Double longitude,
-  @NotBlank String timeZoneId
+  String timeZoneId
 ) {}

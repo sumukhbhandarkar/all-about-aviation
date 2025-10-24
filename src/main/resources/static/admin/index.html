@@ -53,10 +53,30 @@
                 </div>
             </div>
             <div class="bar" style="margin-top:12px; gap:12px">
-                <button id="ap_save">Add Airport</button>
+                <button id="ap_save">Add / Update Airport</button>
+                <button class="secondary" id="ap_load">Load Airport + Runways</button>
                 <div id="ap_msg"></div>
             </div>
+
+            <hr style="border:0;border-top:1px solid #223;margin:16px 0"/>
+
+            <h3 style="margin:0 0 8px">Runways</h3>
+            <div id="ap_runways" class="pill" style="padding:10px">No data loaded</div>
+
+            <div class="row" style="margin-top:12px">
+                <div><label>Identifier</label><input id="rw_ident" placeholder="09L/27R"/></div>
+                <div><label>Length (m)</label><input id="rw_len" type="number" placeholder="4000"/></div>
+                <div><label>Width (m)</label><input id="rw_wid" type="number" placeholder="45"/></div>
+            </div>
+            <div class="row">
+                <div><label>Surface</label><input id="rw_surface" placeholder="ASPHALT"/></div>
+            </div>
+            <div class="bar" style="margin-top:12px; gap:12px">
+                <button id="rw_add">Add Runway</button>
+                <div id="rw_msg"></div>
+            </div>
         </div>
+
 
         <div class="card">
             <h2>Aircraft</h2>
@@ -133,27 +153,66 @@
 </div>
 
 <script>
+    // --- utilities FIRST (so they're available everywhere) ---
     const $ = id => document.getElementById(id);
+
+    // POST helper: always returns a Promise
     const api = (path, payload, msgEl) => {
       const key = localStorage.getItem('ADMIN_KEY') || '';
-      if (!key) { msgEl.innerHTML = '<span class="err">Set Admin Key first</span>'; return; }
-      msgEl.textContent = 'Saving...';
+      if (!key) {
+        if (msgEl) msgEl.innerHTML = '<span class="err">Set Admin Key first</span>';
+        return Promise.resolve({ ok: false, data: { message: 'Missing admin key' } });
+      }
+      if (msgEl) msgEl.textContent = 'Saving...';
       return fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
         body: JSON.stringify(payload)
       }).then(async r => {
         const text = await r.text();
-        try{ var data = JSON.parse(text);}catch(e){ data = text;}
-        if (r.ok){ msgEl.innerHTML = '<span class="ok">Saved</span>'; }
-        else { msgEl.innerHTML = '<span class="err">'+ (data?.message || data) +'</span>'; }
-        return {ok:r.ok, data};
+        let data; try { data = JSON.parse(text); } catch { data = text; }
+        if (r.ok) { msgEl && (msgEl.innerHTML = '<span class="ok">Saved</span>'); }
+        else { msgEl && (msgEl.innerHTML = '<span class="err">'+ (data?.message || data) +'</span>'); }
+        return { ok: r.ok, data };
       }).catch(e => {
-        msgEl.innerHTML = '<span class="err">'+ e +'</span>';
+        msgEl && (msgEl.innerHTML = '<span class="err">'+ e +'</span>');
+        return { ok: false, data: { message: String(e) } };
       });
     };
 
-    // key handling
+    // GET helper
+    const get = (path, msgEl) => {
+      msgEl && (msgEl.textContent = 'Loading...');
+      return fetch(path, { method: 'GET' })
+        .then(async r => {
+          const t = await r.text();
+          let data; try { data = JSON.parse(t); } catch { data = t; }
+          if (!r.ok) throw new Error((data && data.message) || t || r.statusText);
+          msgEl && (msgEl.innerHTML = '<span class="ok">Loaded</span>');
+          return data;
+        })
+        .catch(e => { msgEl && (msgEl.innerHTML = '<span class="err">'+ e.message +'</span>'); throw e; });
+    };
+
+    // Render runways
+    function renderRunways(iata, runways) {
+      const box = $('ap_runways');
+      if (!Array.isArray(runways) || runways.length === 0) {
+        box.innerHTML = `No runways for <b>${iata}</b>`;
+        return;
+      }
+      const rows = runways.map(r =>
+        `<div style="margin:6px 0">
+           <code>${r.identifier}</code>
+           ${r.lengthMeters ? ` • ${r.lengthMeters}m` : ''}
+           ${r.widthMeters ? ` x ${r.widthMeters}m` : ''}
+           ${r.surface ? ` • ${r.surface}` : ''}
+         </div>`
+      ).join('');
+      box.innerHTML = `<div>Airport <b>${iata}</b> has ${runways.length} runway(s):</div>${rows}`;
+    }
+
+    // --- key handling ---
     $('saveKey').onclick = () => {
       const k = $('adminKey').value.trim();
       if (!k) { alert('Paste your admin key'); return; }
@@ -165,48 +224,75 @@
       if (localStorage.getItem('ADMIN_KEY')) $('keyPreview').textContent = '••••••••';
     })();
 
-    // buttons
+    // --- buttons (wire AFTER utilities are defined) ---
+
+    // Airports
     $('ap_save').onclick = () => api('/api/airports', {
-      iataCode: $('ap_iata').value,
-      city: $('ap_city').value,
-      address: $('ap_addr').value,
-      latitude: parseFloat($('ap_lat').value),
-      longitude: parseFloat($('ap_lon').value),
-      timeZoneId: $('ap_tz').value
+      iataCode: $('ap_iata').value.trim().toUpperCase(),
+      city: $('ap_city').value.trim(),
+      address: $('ap_addr').value.trim(),
+      latitude: $('ap_lat').value ? parseFloat($('ap_lat').value) : null,
+      longitude: $('ap_lon').value ? parseFloat($('ap_lon').value) : null,
+      timeZoneId: $('ap_tz').value.trim()
     }, $('ap_msg'));
 
+    $('ap_load').onclick = async () => {
+      const iata = $('ap_iata').value.trim().toUpperCase();
+      if (!iata) { $('ap_msg').innerHTML = '<span class="err">Enter IATA</span>'; return; }
+      const runways = await get(`/api/airports/${iata}/runways`, $('ap_msg'));
+      renderRunways(iata, runways);
+    };
+
+    // Runways
+    $('rw_add').onclick = () => api('/api/runways', {
+      airportIata: $('ap_iata').value.trim().toUpperCase(),
+      identifier: $('rw_ident').value.trim(),
+      lengthMeters: $('rw_len').value ? parseInt($('rw_len').value, 10) : null,
+      widthMeters: $('rw_wid').value ? parseInt($('rw_wid').value, 10) : null,
+      surface: $('rw_surface').value ? $('rw_surface').value.trim() : null
+    }, $('rw_msg')).then(res => {
+      if (res && res.ok) $('ap_load').click(); // refresh list
+    });
+
+    // Aircraft
     $('ac_save').onclick = () => api('/api/aircrafts', {
-      brand: $('ac_brand').value,
-      model: $('ac_model').value,
-      seatLayoutJson: $('ac_layout').value || null,
-      paxNumber: parseInt($('ac_pax').value,10),
-      rangeKm: parseInt($('ac_range').value,10)
+      brand: $('ac_brand').value.trim(),
+      model: $('ac_model').value.trim(),
+      seatLayoutJson: ($('ac_layout').value || '').trim() || null,
+      paxNumber: $('ac_pax').value ? parseInt($('ac_pax').value,10) : null,
+      rangeKm: $('ac_range').value ? parseInt($('ac_range').value,10) : null
     }, $('ac_msg'));
 
+    // Airline
     $('al_save').onclick = () => api('/api/airlines', {
-      name: $('al_name').value,
-      baseCountry: $('al_country').value,
-      logoUrl: $('al_logo').value || null,
-      codeshares: ($('al_codeshares').value || '').split(',').map(s => s.trim()).filter(Boolean)
+      name: $('al_name').value.trim(),
+      baseCountry: $('al_country').value.trim(),
+      logoUrl: ($('al_logo').value || '').trim() || null,
+      codeshares: ($('al_codeshares').value || '')
+        .split(',').map(s => s.trim()).filter(Boolean)
     }, $('al_msg'));
 
+    // Tail
     $('tn_save').onclick = () => api('/api/tails', {
-      tailNumber: $('tn_tail').value,
-      country: $('tn_country').value,
-      airlineName: $('tn_airline').value || null,
-      aircraftBrand: $('tn_brand').value || null,
-      aircraftModel: $('tn_model').value || null
+      tailNumber: $('tn_tail').value.trim().toUpperCase(),
+      country: $('tn_country').value.trim(),
+      airlineName: ($('tn_airline').value || '').trim() || null,
+      aircraftBrand: ($('tn_brand').value || '').trim() || null,
+      aircraftModel: ($('tn_model').value || '').trim() || null
     }, $('tn_msg'));
 
+    // Flight
     $('fl_save').onclick = () => api('/api/flights', {
-      flightNumber: $('fl_no').value,
-      scheduledDeparture: $('fl_dep').value,
-      scheduledArrival: $('fl_arr').value,
-      originIata: $('fl_from').value,
-      destinationIata: $('fl_to').value,
-      airlineName: $('fl_airline').value || null,
-      tailNumber: $('fl_tail').value || null
+      flightNumber: $('fl_no').value.trim(),
+      scheduledDeparture: $('fl_dep').value.trim(),
+      scheduledArrival: $('fl_arr').value.trim(),
+      originIata: $('fl_from').value.trim().toUpperCase(),
+      destinationIata: $('fl_to').value.trim().toUpperCase(),
+      airlineName: ($('fl_airline').value || '').trim() || null,
+      tailNumber: ($('fl_tail').value || '').trim().toUpperCase() || null
     }, $('fl_msg'));
 </script>
+
+
 </body>
 </html>
