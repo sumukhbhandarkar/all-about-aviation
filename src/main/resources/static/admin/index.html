@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Aviation Admin</title>
+    <style>
+        *{box-sizing:border-box} body{font-family:ui-sans-serif,system-ui,Segoe UI,Inter,Arial;margin:0;background:#0b1020;color:#e7ecff}
+        .wrap{max-width:1100px;margin:0 auto;padding:24px}
+        .card{background:#121938;border:1px solid #223; border-radius:16px; padding:20px; margin-bottom:16px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+        h1{font-size:24px;margin:0 0 16px}
+        h2{font-size:18px;margin:0 0 12px}
+        label{display:block;font-size:12px;opacity:.9;margin:8px 0 4px}
+        input,textarea{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #334; background:#0c1228; color:#e7ecff}
+        textarea{min-height:80px}
+        .row{display:grid; grid-template-columns:repeat(2,1fr); gap:12px}
+        .row3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+        button{background:#5b8cff;border:0;color:white;padding:10px 14px;border-radius:10px;cursor:pointer}
+        button.secondary{background:#263055}
+        .bar{display:flex; gap:8px; align-items:center}
+        .pill{background:#1b2449; border:1px solid #2b376b; padding:8px 10px; border-radius:999px}
+        .ok{color:#71f5a9} .err{color:#ff7a7a}
+        .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+        @media(max-width:900px){.row,.row3,.grid{grid-template-columns:1fr}}
+        code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px}
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card bar">
+        <h1 style="flex:1">Aviation Admin</h1>
+        <div class="pill">
+            <label>Admin Key</label>
+            <input id="adminKey" placeholder="paste X-Admin-Key" />
+        </div>
+        <button id="saveKey">Use Key</button>
+        <span id="keyState" class="pill">key: <code id="keyPreview">unset</code></span>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Airport</h2>
+            <div class="row3">
+                <div><label>IATA</label><input id="ap_iata" placeholder="BLR"/></div>
+                <div><label>City</label><input id="ap_city" placeholder="Bengaluru"/></div>
+                <div><label>Time Zone</label><input id="ap_tz" placeholder="Asia/Kolkata"/></div>
+            </div>
+            <div class="row">
+                <div><label>Address</label><input id="ap_addr" placeholder="KIA, Devanahalli"/></div>
+                <div class="row">
+                    <div><label>Latitude</label><input id="ap_lat" type="number" step="0.0001" placeholder="13.1989"/></div>
+                    <div><label>Longitude</label><input id="ap_lon" type="number" step="0.0001" placeholder="77.7063"/></div>
+                </div>
+            </div>
+            <div class="bar" style="margin-top:12px; gap:12px">
+                <button id="ap_save">Add Airport</button>
+                <div id="ap_msg"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Aircraft</h2>
+            <div class="row">
+                <div><label>Brand</label><input id="ac_brand" placeholder="Airbus"/></div>
+                <div><label>Model</label><input id="ac_model" placeholder="A320neo"/></div>
+            </div>
+            <div class="row">
+                <div><label>Pax</label><input id="ac_pax" type="number" placeholder="186"/></div>
+                <div><label>Range (km)</label><input id="ac_range" type="number" placeholder="6500"/></div>
+            </div>
+            <label>Seat Layout JSON</label>
+            <textarea id="ac_layout" placeholder='{"rows":30,"config":"3-3"}'></textarea>
+            <div class="bar" style="margin-top:12px; gap:12px">
+                <button id="ac_save">Add Aircraft</button>
+                <div id="ac_msg"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Airline</h2>
+            <div class="row">
+                <div><label>Name</label><input id="al_name" placeholder="IndiGo"/></div>
+                <div><label>Base Country</label><input id="al_country" placeholder="India"/></div>
+            </div>
+            <label>Logo URL</label><input id="al_logo" placeholder="https://..."/>
+            <label>Codeshares (comma-separated)</label><input id="al_codeshares" placeholder="AF,KL"/>
+            <div class="bar" style="margin-top:12px; gap:12px">
+                <button id="al_save">Add Airline</button>
+                <div id="al_msg"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Tail Number</h2>
+            <div class="row">
+                <div><label>Tail</label><input id="tn_tail" placeholder="VT-IZX"/></div>
+                <div><label>Country</label><input id="tn_country" placeholder="India"/></div>
+            </div>
+            <div class="row">
+                <div><label>Airline (name)</label><input id="tn_airline" placeholder="IndiGo"/></div>
+                <div class="row">
+                    <div><label>Aircraft Brand</label><input id="tn_brand" placeholder="Airbus"/></div>
+                    <div><label>Aircraft Model</label><input id="tn_model" placeholder="A320neo"/></div>
+                </div>
+            </div>
+            <div class="bar" style="margin-top:12px; gap:12px">
+                <button id="tn_save">Add Tail</button>
+                <div id="tn_msg"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Flight</h2>
+            <div class="row3">
+                <div><label>Flight Number</label><input id="fl_no" placeholder="6E-123"/></div>
+                <div><label>Origin IATA</label><input id="fl_from" placeholder="BLR"/></div>
+                <div><label>Destination IATA</label><input id="fl_to" placeholder="BOM"/></div>
+            </div>
+            <div class="row">
+                <div><label>Depart (ISO)</label><input id="fl_dep" placeholder="2025-10-26T08:00:00+05:30"/></div>
+                <div><label>Arrive (ISO)</label><input id="fl_arr" placeholder="2025-10-26T10:15:00+05:30"/></div>
+            </div>
+            <div class="row">
+                <div><label>Airline (name)</label><input id="fl_airline" placeholder="IndiGo"/></div>
+                <div><label>Tail Number</label><input id="fl_tail" placeholder="VT-IZX"/></div>
+            </div>
+            <div class="bar" style="margin-top:12px; gap:12px">
+                <button id="fl_save">Add Flight</button>
+                <div id="fl_msg"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const $ = id => document.getElementById(id);
+    const api = (path, payload, msgEl) => {
+      const key = localStorage.getItem('ADMIN_KEY') || '';
+      if (!key) { msgEl.innerHTML = '<span class="err">Set Admin Key first</span>'; return; }
+      msgEl.textContent = 'Saving...';
+      return fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+        body: JSON.stringify(payload)
+      }).then(async r => {
+        const text = await r.text();
+        try{ var data = JSON.parse(text);}catch(e){ data = text;}
+        if (r.ok){ msgEl.innerHTML = '<span class="ok">Saved</span>'; }
+        else { msgEl.innerHTML = '<span class="err">'+ (data?.message || data) +'</span>'; }
+        return {ok:r.ok, data};
+      }).catch(e => {
+        msgEl.innerHTML = '<span class="err">'+ e +'</span>';
+      });
+    };
+
+    // key handling
+    $('saveKey').onclick = () => {
+      const k = $('adminKey').value.trim();
+      if (!k) { alert('Paste your admin key'); return; }
+      localStorage.setItem('ADMIN_KEY', k);
+      $('keyPreview').textContent = '••••••••';
+      $('keyState').classList.add('ok');
+    };
+    (function initKey(){
+      if (localStorage.getItem('ADMIN_KEY')) $('keyPreview').textContent = '••••••••';
+    })();
+
+    // buttons
+    $('ap_save').onclick = () => api('/api/airports', {
+      iataCode: $('ap_iata').value,
+      city: $('ap_city').value,
+      address: $('ap_addr').value,
+      latitude: parseFloat($('ap_lat').value),
+      longitude: parseFloat($('ap_lon').value),
+      timeZoneId: $('ap_tz').value
+    }, $('ap_msg'));
+
+    $('ac_save').onclick = () => api('/api/aircrafts', {
+      brand: $('ac_brand').value,
+      model: $('ac_model').value,
+      seatLayoutJson: $('ac_layout').value || null,
+      paxNumber: parseInt($('ac_pax').value,10),
+      rangeKm: parseInt($('ac_range').value,10)
+    }, $('ac_msg'));
+
+    $('al_save').onclick = () => api('/api/airlines', {
+      name: $('al_name').value,
+      baseCountry: $('al_country').value,
+      logoUrl: $('al_logo').value || null,
+      codeshares: ($('al_codeshares').value || '').split(',').map(s => s.trim()).filter(Boolean)
+    }, $('al_msg'));
+
+    $('tn_save').onclick = () => api('/api/tails', {
+      tailNumber: $('tn_tail').value,
+      country: $('tn_country').value,
+      airlineName: $('tn_airline').value || null,
+      aircraftBrand: $('tn_brand').value || null,
+      aircraftModel: $('tn_model').value || null
+    }, $('tn_msg'));
+
+    $('fl_save').onclick = () => api('/api/flights', {
+      flightNumber: $('fl_no').value,
+      scheduledDeparture: $('fl_dep').value,
+      scheduledArrival: $('fl_arr').value,
+      originIata: $('fl_from').value,
+      destinationIata: $('fl_to').value,
+      airlineName: $('fl_airline').value || null,
+      tailNumber: $('fl_tail').value || null
+    }, $('fl_msg'));
+</script>
+</body>
+</html>
