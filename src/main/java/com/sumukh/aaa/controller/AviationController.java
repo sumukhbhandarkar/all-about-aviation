@@ -78,7 +78,7 @@ public class AviationController {
   // ---------- Airlines ----------
   @PostMapping("/airlines")
   public Airline createAirline(@RequestBody @Valid CreateAirlineDTO dto) {
-    return svc.createAirline(dto);
+    return svc.createOrUpdateAirline(dto, true);
   }
 
   @GetMapping("/airlines")

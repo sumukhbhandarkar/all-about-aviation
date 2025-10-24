@@ -9,6 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
 import static com.sumukh.aaa.utils.Normalizers.iata;
 
 @Service @RequiredArgsConstructor @Transactional
@@ -57,18 +61,54 @@ public class AviationService {
   }
 
   // Airlines
-  public Airline createAirline(CreateAirlineDTO dto) {
-    airlineRepo.findByNameIgnoreCase(dto.name()).ifPresent(a -> {
-      throw new IllegalArgumentException("Airline exists: " + dto.name());
-    });
+//  public Airline createAirline(CreateAirlineDTO dto) {
+//    airlineRepo.findByNameIgnoreCase(dto.name()).ifPresent(a -> {
+//      throw new IllegalArgumentException("Airline exists: " + dto.name());
+//    });
+//    Airline a = Airline.builder()
+//      .name(dto.name())
+//      .baseCountry(dto.baseCountry())
+//      .logoUrl(dto.logoUrl())
+//      .build();
+//    if (dto.codeshares() != null) a.getCodeshares().addAll(dto.codeshares());
+//    return airlineRepo.save(a);
+//  }
+  private static List<String> normCodeshares(List<String> in) {
+    if (in == null) return new ArrayList<>();
+    return in.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .map(String::toUpperCase)
+            .distinct()
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+  }
+
+  @Transactional
+  public Airline createOrUpdateAirline(CreateAirlineDTO dto, boolean upsert) {
+    String name = dto.name().trim();
+    List<String> cs = normCodeshares(dto.codeshares());
+
+    var existing = airlineRepo.findByNameIgnoreCase(name);
+
+    if (existing.isPresent()) {
+      if (!upsert) throw new IllegalArgumentException("Airline exists: " + name);
+      Airline a = existing.get();
+      a.setBaseCountry(dto.baseCountry().trim());
+      a.setLogoUrl(dto.logoUrl());
+      a.setCodeshares(cs);
+      return airlineRepo.save(a);
+    }
     Airline a = Airline.builder()
-      .name(dto.name())
-      .baseCountry(dto.baseCountry())
-      .logoUrl(dto.logoUrl())
-      .build();
-    if (dto.codeshares() != null) a.getCodeshares().addAll(dto.codeshares());
+            .name(name)
+            .baseCountry(dto.baseCountry().trim())
+            .logoUrl(dto.logoUrl())
+            .codeshares(cs)
+            .build();
+
     return airlineRepo.save(a);
   }
+
 
   // TailNumber
   public TailNumber createTailNumber(CreateTailNumberDTO dto) {
