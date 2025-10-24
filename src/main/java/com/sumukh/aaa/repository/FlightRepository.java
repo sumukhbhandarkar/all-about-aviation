@@ -14,18 +14,35 @@ import java.util.Optional;
 
 @Repository
 public interface FlightRepository extends JpaRepository<Flight, Long> {
+
   Optional<Flight> findByFlightNumber(String flightNumber);
 
-  // Distinct airlines that touch an airport (origin or destination)
-  @Query("select distinct f.airline from Flight f where f.origin = :ap or f.destination = :ap and f.airline is not null")
-  List<Airline> findAirlinesServing(@Param("ap") Airport ap);
-
-  // Distinct destinations reachable from the airport (either direction)
+  // ✅ Custom query to find flights by origin & destination IATA codes
   @Query("""
-         select distinct case when f.origin = :ap then f.destination else f.origin end
-         from Flight f
-         where f.origin = :ap or f.destination = :ap
-         """)
-  List<Airport> findConnectedAirports(@Param("ap") Airport ap);
+        SELECT f FROM Flight f
+        WHERE UPPER(f.origin.iataCode) = UPPER(:originIata)
+          AND UPPER(f.destination.iataCode) = UPPER(:destinationIata)
+    """)
+  List<Flight> findByRoute(@Param("originIata") String originIata,
+                           @Param("destinationIata") String destinationIata);
+
+  // For time range searches
+  List<Flight> findByScheduledDepartureBetween(OffsetDateTime from, OffsetDateTime to);
+
+  // Distinct airlines that service an airport
+  @Query("""
+        SELECT DISTINCT f.airline FROM Flight f
+        WHERE (f.origin = :airport OR f.destination = :airport)
+          AND f.airline IS NOT NULL
+    """)
+  List<Airline> findAirlinesServing(@Param("airport") Airport airport);
+
+  // Distinct destinations reachable from/to this airport
+  @Query("""
+        SELECT DISTINCT CASE WHEN f.origin = :airport THEN f.destination ELSE f.origin END
+        FROM Flight f
+        WHERE f.origin = :airport OR f.destination = :airport
+    """)
+  List<Airport> findConnectedAirports(@Param("airport") Airport airport);
 }
 
