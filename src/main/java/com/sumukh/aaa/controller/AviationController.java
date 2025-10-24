@@ -30,7 +30,7 @@ public class AviationController {
 //    return svc.createAirport(dto);
 //  }
 
-  @PostMapping("/api/airports")
+  @PostMapping("/airports")
   public Airport upsertAirport(
           @Valid @RequestBody CreateAirportDTO dto,
           @RequestParam(name = "upsert", defaultValue = "true") boolean upsert
