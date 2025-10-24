@@ -7,6 +7,8 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -148,7 +150,10 @@ public class SmartLookupController {
             .filter(Objects::nonNull)
             .sorted(String.CASE_INSENSITIVE_ORDER)
             .toList();
-    return new AirportLookupResponse(ap.getIataCode(), ap.getCity(), runways, airlines, destinations);
+    String nowLocal = ZonedDateTime
+            .now(ZoneId.of(ap.getTimeZoneId()))
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+    return new AirportLookupResponse(ap.getIataCode(), ap.getCity(), runways, airlines, destinations, nowLocal);
   }
 
   private static String normalizeFlight(String s) {

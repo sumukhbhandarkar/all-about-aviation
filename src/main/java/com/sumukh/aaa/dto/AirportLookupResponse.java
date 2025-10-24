@@ -7,5 +7,6 @@ public record AirportLookupResponse(
         String city,
         List<String> runways,           // e.g., ["09L/27R","10/28"]
         List<String> airlines,          // airline names
-        List<String> destinations       // IATA codes connected by any flight
+        List<String> destinations,       // IATA codes connected by any flight
+        String currentTime
 ) {}
