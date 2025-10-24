@@ -119,4 +119,44 @@ public class AviationService {
       .airline(airline).tailNumber(tail)
       .build());
   }
+
+  @Transactional
+  public Airport createOrUpdateAirport(CreateAirportDTO dto, boolean upsert) {
+    String code = iata(dto.iataCode());
+
+    // required + range checks
+    if (dto.latitude() == null || dto.longitude() == null)
+      throw new IllegalArgumentException("Latitude/Longitude must be provided");
+    if (dto.latitude() < -90 || dto.latitude() > 90)
+      throw new IllegalArgumentException("Latitude out of range (-90..90)");
+    if (dto.longitude() < -180 || dto.longitude() > 180)
+      throw new IllegalArgumentException("Longitude out of range (-180..180)");
+
+    var existing = airportRepo.findByIataCode(code);
+
+    if (existing.isPresent()) {
+      if (!upsert) {
+        throw new IllegalArgumentException("Airport IATA already exists: " + code);
+      }
+      // UPDATE path
+      Airport a = existing.get();
+      a.setCity(dto.city().trim());
+      a.setAddress(dto.address().trim());
+      a.setLatitude(dto.latitude());
+      a.setLongitude(dto.longitude());
+      a.setTimeZoneId(TimeZoneResolver.resolve(dto.timeZoneId(), dto.latitude(), dto.longitude()));
+      return airportRepo.save(a);
+    }
+
+    // CREATE path
+    Airport a = Airport.builder()
+            .iataCode(code)
+            .city(dto.city().trim())
+            .address(dto.address().trim())
+            .latitude(dto.latitude())
+            .longitude(dto.longitude())
+            .timeZoneId(TimeZoneResolver.resolve(dto.timeZoneId(), dto.latitude(), dto.longitude()))
+            .build();
+    return airportRepo.save(a);
+  }
 }

@@ -25,9 +25,17 @@ public class AviationController {
   private final FlightRepository flightRepo;
 
   // ---------- Airports ----------
-  @PostMapping("/airports")
-  public Airport createAirport(@RequestBody @Valid CreateAirportDTO dto) {
-    return svc.createAirport(dto);
+//  @PostMapping("/airports")
+//  public Airport createAirport(@RequestBody @Valid CreateAirportDTO dto) {
+//    return svc.createAirport(dto);
+//  }
+
+  @PostMapping("/api/airports")
+  public Airport upsertAirport(
+          @Valid @RequestBody CreateAirportDTO dto,
+          @RequestParam(name = "upsert", defaultValue = "true") boolean upsert
+  ) {
+    return svc.createOrUpdateAirport(dto, upsert);
   }
 
   @GetMapping("/airports")
