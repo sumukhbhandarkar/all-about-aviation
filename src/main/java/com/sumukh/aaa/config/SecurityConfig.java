@@ -16,6 +16,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
+            .cors(c-> {})
       .csrf(csrf -> csrf.disable()) // APIs; UI uses header key
       .headers(h -> h.frameOptions(f -> f.sameOrigin()))
       .authorizeHttpRequests(reg -> reg

@@ -19,6 +19,11 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
 
+    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+      chain.doFilter(request, response);
+      return;
+    }
+
     // Allow all safe GETs (your public lookups) and static files
     boolean isRead = HttpMethod.GET.matches(request.getMethod());
     boolean isActuatorHealth = request.getRequestURI().startsWith("/actuator/health");

@@ -144,7 +144,9 @@ public class AviationService {
       a.setAddress(dto.address().trim());
       a.setLatitude(dto.latitude());
       a.setLongitude(dto.longitude());
-      a.setTimeZoneId(TimeZoneResolver.resolve(dto.timeZoneId(), dto.latitude(), dto.longitude()));
+      String tzId = TimeZoneResolver.resolve(dto.timeZoneId(), dto.latitude(), dto.longitude());
+      a.setTimeZoneId(tzId);
+//      a.setTimeZoneId(TimeZoneResolver.resolve(dto.timeZoneId(), dto.latitude(), dto.longitude()));
       return airportRepo.save(a);
     }
 
