@@ -33,26 +33,43 @@ public class SmartLookupController {
 
   private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
-  @GetMapping("{code}")
-  public Object universalLookup(@PathVariable String code) {
-    String raw = code.trim();
+//  @GetMapping("{code}")
+//  public Object universalLookup(@PathVariable String code) {
+//    String raw = code.trim();
+//
+//    // Try flight first (matches your /6E-123, /6e0123 etc)
+//    if (FLIGHT.matcher(raw).matches()) {
+//      return lookupFlight(raw);
+//    }
+//
+//    // Then tail (matches /VT-ILO, /vtilo, etc)
+//    if (TAIL.matcher(raw).matches()) {
+//      return lookupTail(raw);
+//    }
+//
+//    // Then 3-letter IATA (matches /blr or /BLR)
+//    if (IATA3.matcher(raw).matches()) {
+//      return lookupAirport(raw);
+//    }
+//
+//    throw new IllegalArgumentException("Unsupported code format: " + raw);
+//  }
 
-    // Try flight first (matches your /6E-123, /6e0123 etc)
-    if (FLIGHT.matcher(raw).matches()) {
-      return lookupFlight(raw);
-    }
+  @GetMapping("/{flight:^(?i)[a-z0-9]{2}-?\\d{1,4}$}")
+  public Object flight(@PathVariable String flight) {
+    return lookupFlight(flight);
+  }
 
-    // Then tail (matches /VT-ILO, /vtilo, etc)
-    if (TAIL.matcher(raw).matches()) {
-      return lookupTail(raw);
-    }
+  // TAIL: 2–3 letters + optional hyphen + 2–5 alnum
+  @GetMapping("/{tail:^(?i)[a-z]{2,3}-?[a-z0-9]{2,5}$}")
+  public Object tail(@PathVariable String tail) {
+    return lookupTail(tail);
+  }
 
-    // Then 3-letter IATA (matches /blr or /BLR)
-    if (IATA3.matcher(raw).matches()) {
-      return lookupAirport(raw);
-    }
-
-    throw new IllegalArgumentException("Unsupported code format: " + raw);
+  // IATA: 3 letters
+  @GetMapping("/{iata:^(?i)[a-z]{3}$}")
+  public Object airport(@PathVariable String iata) {
+    return lookupAirport(iata);
   }
 
   // ---------- helpers ----------
