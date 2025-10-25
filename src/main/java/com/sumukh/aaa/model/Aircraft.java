@@ -16,7 +16,7 @@ public class Aircraft {
   @NotBlank private String brand;       // e.g., Airbus, Boeing
   @NotBlank private String model;       // e.g., A320neo, 737-8
 
-  @Lob
+  @Column(name = "seat_layout_json", columnDefinition = "text")
   private String seatLayoutJson;        // store JSON as TEXT
 
   @Min(1) private int paxNumber;        // total seats

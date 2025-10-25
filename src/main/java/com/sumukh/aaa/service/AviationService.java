@@ -3,6 +3,7 @@ package com.sumukh.aaa.service;
 import com.sumukh.aaa.dto.*;
 import com.sumukh.aaa.model.*;
 import com.sumukh.aaa.repository.*;
+import com.sumukh.aaa.utils.JsonUtils;
 import com.sumukh.aaa.utils.TimeZoneResolver;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -53,9 +54,10 @@ public class AviationService {
 
   // Aircrafts
   public Aircraft createAircraft(CreateAircraftDTO dto) {
+    var prettySeat = JsonUtils.toPretty(dto.seatLayoutJson());
     return aircraftRepo.save(Aircraft.builder()
       .brand(dto.brand()).model(dto.model())
-      .seatLayoutJson(dto.seatLayoutJson())
+      .seatLayoutJson(prettySeat)
       .paxNumber(dto.paxNumber()).rangeKm(dto.rangeKm())
       .build());
   }

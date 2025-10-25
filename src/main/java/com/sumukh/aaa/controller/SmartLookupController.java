@@ -4,6 +4,7 @@ import com.sumukh.aaa.model.*;
 import com.sumukh.aaa.dto.*;
 import com.sumukh.aaa.repository.*;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
