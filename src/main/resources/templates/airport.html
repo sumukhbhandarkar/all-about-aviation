@@ -1,115 +1,309 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <title th:text="'Airport ' + ${ap.iataCode}">Airport</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title th:text="'Airport • ' + ${ap.iataCode}">Airport</title>
+
+    <!-- Leaflet Map -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
     <style>
-        *{box-sizing:border-box}
-        body{font-family:ui-sans-serif,system-ui,Segoe UI,Inter,Arial;margin:0;background:#0b1020;color:#e7ecff}
-        .wrap{max-width:1100px;margin:0 auto;padding:24px}
-        .card{background:#121938;border:1px solid #223;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-        h1{font-size:24px;margin:0 0 16px}
-        h2{font-size:18px;margin:0 0 12px}
-        .pill{background:#1b2449;border:1px solid #2b376b;padding:6px 10px;border-radius:999px;display:inline-block}
-        table{width:100%;border-collapse:collapse}
-        th,td{padding:8px 10px;border-bottom:1px solid #223;text-align:left}
-        a{color:#9ec5ff;text-decoration:none}
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        @media (max-width:900px){.grid{grid-template-columns:1fr}}
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        margin: 0;
+        background: radial-gradient(circle at top left, #0b1020, #050710 80%);
+        color: #e6ecff;
+      }
+
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        font-weight: 600;
+        color: #eaf1ff;
+      }
+
+      h1 {
+        font-size: 28px;
+        margin-bottom: 12px;
+        background: linear-gradient(90deg, #66aaff, #99ccff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      h2 {
+        font-size: 18px;
+        color: #a4b8ff;
+        margin-bottom: 10px;
+      }
+
+      .card {
+        background: rgba(18, 25, 56, 0.85);
+        border: 1px solid rgba(50, 75, 140, 0.4);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(12px);
+        transition: transform 0.2s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-3px);
+        border-color: #4d79ff;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 6px 12px;
+        margin: 4px 6px 4px 0;
+        background: rgba(45, 60, 110, 0.8);
+        border: 1px solid rgba(100, 130, 220, 0.5);
+        border-radius: 999px;
+        font-size: 13px;
+        color: #bbd3ff;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      th {
+        text-align: left;
+        color: #aabfff;
+        font-weight: 500;
+      }
+
+      td {
+        color: #dde4ff;
+      }
+
+      a {
+        color: #88b7ff;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      a:hover {
+        color: #b8d8ff;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+      }
+
+      #map {
+        width: 100%;
+        height: 400px;
+        border-radius: 16px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(70, 100, 180, 0.4);
+      }
     </style>
-</head>
-<body>
-<div class="wrap">
-
-    <div class="card">
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
         <h1>
-            <span th:text="${ap.iataCode}">IATA</span>
-            •
-            <span th:text="${ap.city}">City</span>
+          <span th:text="${ap.iataCode}">IATA</span> •
+          <span th:text="${ap.city}">City</span>
         </h1>
-        <div class="pill" th:text="'Local time: ' + ${localTime}">Local time</div>
-        <span th:if="${ap.timeZoneId != null}">
-      &nbsp;<div class="pill" th:text="'TZ: ' + ${ap.timeZoneId}">TZ</div>
-    </span>
-    </div>
+        <div>
+          <span class="pill" th:text="'Local time: ' + ${localTime}"
+            >Local time</span
+          >
+          <span
+            class="pill"
+            th:if="${ap.timeZoneId != null}"
+            th:text="'TZ: ' + ${ap.timeZoneId}"
+            >TZ</span
+          >
+        </div>
+      </div>
 
-    <div class="grid">
+      <!-- Map -->
+      <div id="map"></div>
+
+      <div class="grid">
         <!-- Runways -->
         <div class="card">
-            <h2>Runways</h2>
-            <table>
-                <thead>
-                <tr><th>Identifier</th><th>Length (m)</th><th>Width (m)</th><th>Surface</th></tr>
-                </thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(runways)}">
-                    <td colspan="4">No runways</td>
-                </tr>
-                <tr th:each="r : ${runways}">
-                    <td th:text="${r.identifier}">09/27</td>
-                    <td th:text="${r.lengthMeters} ?: '-'">-</td>
-                    <td th:text="${r.widthMeters}  ?: '-'">-</td>
-                    <td th:text="${r.surface}      ?: '-'">-</td>
-                </tr>
-                </tbody>
-            </table>
+          <h2>Runways</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Identifier</th>
+                <th>Length (m)</th>
+                <th>Width (m)</th>
+                <th>Surface</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:if="${#lists.isEmpty(runways)}">
+                <td colspan="4">No runways</td>
+              </tr>
+              <tr th:each="r : ${runways}">
+                <td th:text="${r.identifier}">09/27</td>
+                <td th:text="${r.lengthMeters} ?: '-'">-</td>
+                <td th:text="${r.widthMeters}  ?: '-'">-</td>
+                <td th:text="${r.surface}      ?: '-'">-</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Airlines -->
         <div class="card">
-            <h2 th:text="'Airlines serving ' + ${ap.iataCode}">Airlines</h2>
-            <table>
-                <thead><tr><th>Airline</th></tr></thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(airlines)}">
-                    <td>No airlines found</td>
-                </tr>
-                <tr th:each="a : ${airlines}">
-                    <td th:text="${a.name}">Airline</td>
-                </tr>
-                </tbody>
-            </table>
+          <h2>Airlines Serving</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Airline</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:if="${#lists.isEmpty(airlines)}">
+                <td>No airlines found</td>
+              </tr>
+              <tr th:each="a : ${airlines}">
+                <td th:text="${a.name}">Airline</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Destinations -->
         <div class="card">
-            <h2>Destinations</h2>
-            <table>
-                <thead><tr><th>IATA</th></tr></thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(destinations)}">
-                    <td>No destinations</td>
-                </tr>
-                <tr th:each="d : ${destinations}">
-                    <td>
-                        <a th:href="@{/{code}(code=${d})}" th:text="${d}">IATA</a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+          <h2>Destinations</h2>
+
+          <!-- when we have full objects -->
+          <table th:if="${!#lists.isEmpty(destinationsFull)}">
+            <thead>
+              <tr>
+                <th>Destination</th>
+                <th>IATA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="d : ${destinationsFull}">
+                <td>
+                  <a
+                    th:href="@{/{code}(code=${d.iata})}"
+                    th:text="${d.name} ?: ${d.iata}"
+                    >Destination</a
+                  >
+                </td>
+                <td th:text="${d.iata}">IATA</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- fallback when we only have codes -->
+          <table th:if="${#lists.isEmpty(destinationsFull)}">
+            <thead>
+              <tr>
+                <th>Destination (IATA)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:if="${#lists.isEmpty(destinations)}">
+                <td>No destinations</td>
+              </tr>
+              <tr th:each="code : ${destinations}">
+                <td>
+                  <a th:href="@{/{code}(code=${code})}" th:text="${code}"
+                    >IATA</a
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <!-- Nearby airports -->
+        <!-- Nearby Airports -->
         <div class="card">
-            <h2>Nearby Airports</h2>
-            <table>
-                <thead><tr><th>IATA</th><th>City</th><th>Distance (km)</th></tr></thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(nearby)}">
-                    <td colspan="3">No nearby airports</td>
-                </tr>
-                <tr th:each="n : ${nearby}">
-                    <td><a th:href="@{/{code}(code=${n.iataCode})}" th:text="${n.iataCode}">IATA</a></td>
-                    <td th:text="${n.city}">City</td>
-                    <td th:text="${T(java.lang.String).format(T(java.util.Locale).US, '%.1f km', n.distanceKm.doubleValue())}"></td>
-                </tr>
-                </tbody>
-            </table>
+          <h2>Nearby Airports</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>IATA</th>
+                <th>City</th>
+                <th>Distance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:if="${#lists.isEmpty(nearby)}">
+                <td colspan="3">No nearby airports</td>
+              </tr>
+              <tr th:each="n : ${nearby}">
+                <td>
+                  <a
+                    th:href="@{/{code}(code=${n.iataCode})}"
+                    th:text="${n.iataCode}"
+                    >IATA</a
+                  >
+                </td>
+                <td th:text="${n.city}">City</td>
+                <td
+                  th:text="${T(java.lang.String).format('%.1f km', n.distanceKm.doubleValue())}"
+                >
+                  10.2 km
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-
+      </div>
     </div>
 
-</div>
-</body>
+    <script th:inline="javascript">
+      /*<![CDATA[*/
+      const lat = [[${ap.latitude}]];
+      const lon = [[${ap.longitude}]];
+      const iata = [[${ap.iataCode}]];
+
+      if (lat && lon) {
+        const map = L.map('map').setView([lat, lon], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        L.marker([lat, lon])
+          .addTo(map)
+          .bindPopup(`<b>${iata}</b><br>Airport Location`)
+          .openPopup();
+      }
+      /*]]>*/
+    </script>
+  </body>
 </html>
