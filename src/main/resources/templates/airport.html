@@ -102,7 +102,7 @@
                 <tr th:each="n : ${nearby}">
                     <td><a th:href="@{/{code}(code=${n.iataCode})}" th:text="${n.iataCode}">IATA</a></td>
                     <td th:text="${n.city}">City</td>
-                    <td th:text="${#numbers.formatDecimal(n.distanceKm, 1, 1, 'POINT', 'NONE')} + ' km'"></td>
+                    <td th:text="${T(java.lang.String).format(T(java.util.Locale).US, '%.1f km', n.distanceKm.doubleValue())}"></td>
                 </tr>
                 </tbody>
             </table>
