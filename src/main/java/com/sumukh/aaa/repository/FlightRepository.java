@@ -55,5 +55,23 @@ public interface FlightRepository extends JpaRepository<Flight, Long> {
   WHERE f.origin = :airport OR f.destination = :airport
 """)
   List<String> findConnectedIataCodes(@Param("airport") Airport airport);
+
+  /// 1️⃣ Find all destinations connected to a given airport by IATA code
+  @Query("""
+        SELECT DISTINCT dest.iataCode
+        FROM Flight f
+        JOIN f.destination dest
+        WHERE upper(f.origin.iataCode) = upper(:iata)
+    """)
+  List<String> findConnectedAirportIatas(@Param("iata") String iata);
+
+  // 2️⃣ Find all airlines that serve this airport (origin or destination)
+  @Query("""
+        SELECT DISTINCT f.airline.name
+        FROM Flight f
+        WHERE upper(f.origin.iataCode) = upper(:iata)
+           OR upper(f.destination.iataCode) = upper(:iata)
+    """)
+  List<String> findAirlinesServingAirport(@Param("iata") String iata);
 }
 

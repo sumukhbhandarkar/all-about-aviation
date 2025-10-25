@@ -1,184 +1,151 @@
 package com.sumukh.aaa.controller;
 
+import com.sumukh.aaa.dto.AirportLookupResponse;
+import com.sumukh.aaa.dto.NearbyAirportDTO;
 import com.sumukh.aaa.model.*;
-import com.sumukh.aaa.dto.*;
 import com.sumukh.aaa.repository.*;
+import com.sumukh.aaa.service.AviationService;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.regex.Pattern;
 
-@RestController
-@RequestMapping("/")
+@Controller
 @RequiredArgsConstructor
 public class SmartLookupController {
 
-  private final FlightRepository flightRepo;
   private final AirportRepository airportRepo;
-  private final AirlineRepository airlineRepo;
-  private final TailNumberRepository tailRepo;
   private final RunwayRepository runwayRepo;
+  private final FlightRepository flightRepo;
+  private final AviationService svc;
 
-  // Patterns (case-insensitive)
-  private static final Pattern IATA3 = Pattern.compile("^[A-Z]{3}$", Pattern.CASE_INSENSITIVE);
+  // ---------- JSON (API) ----------
+  @GetMapping(value = "/{code}", produces = MediaType.APPLICATION_JSON_VALUE)
+  @ResponseBody
+  public ResponseEntity<AirportLookupResponse> airportJson(@PathVariable String code) {
+    var result = loadAirportViewModel(code);
 
-  // Tail: common Indian style "VT-XXX" or "VTXXX", but also allow AA-ABC, AAABC (2-3 letters + optional hyphen + 2-5 letters/digits)
-  private static final Pattern TAIL = Pattern.compile("^[A-Z]{2,3}-?[A-Z0-9]{2,5}$", Pattern.CASE_INSENSITIVE);
+    var nearbyDtos = mapNearby(result.nearby()); // <-- use nearby(), not nearbyAirports()
 
-  // Flight: 2 alnum airline code + optional hyphen + 1–4 digits (allow leading zeros)
-  private static final Pattern FLIGHT = Pattern.compile("^[A-Z0-9]{2}-?\\d{1,4}$", Pattern.CASE_INSENSITIVE);
-
-  private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-
-//  @GetMapping("{code}")
-//  public Object universalLookup(@PathVariable String code) {
-//    String raw = code.trim();
-//
-//    // Try flight first (matches your /6E-123, /6e0123 etc)
-//    if (FLIGHT.matcher(raw).matches()) {
-//      return lookupFlight(raw);
-//    }
-//
-//    // Then tail (matches /VT-ILO, /vtilo, etc)
-//    if (TAIL.matcher(raw).matches()) {
-//      return lookupTail(raw);
-//    }
-//
-//    // Then 3-letter IATA (matches /blr or /BLR)
-//    if (IATA3.matcher(raw).matches()) {
-//      return lookupAirport(raw);
-//    }
-//
-//    throw new IllegalArgumentException("Unsupported code format: " + raw);
-//  }
-
-  @GetMapping("/{flight:^(?i)[a-z0-9]{2}-?\\d{1,4}$}")
-  public Object flight(@PathVariable String flight) {
-    return lookupFlight(flight);
-  }
-
-  // TAIL: 2–3 letters + optional hyphen + 2–5 alnum
-  @GetMapping("/{tail:^(?i)[a-z]{2,3}-?[a-z0-9]{2,5}$}")
-  public Object tail(@PathVariable String tail) {
-    return lookupTail(tail);
-  }
-
-  // IATA: 3 letters
-  @GetMapping("/{iata:^(?i)[a-z]{3}$}")
-  public Object airport(@PathVariable String iata) {
-    return lookupAirport(iata);
-  }
-
-  // ---------- helpers ----------
-
-  private FlightLookupResponse lookupFlight(String code) {
-    String normalized = normalizeFlight(code);        // e.g., "6E-0123" -> "6E0123"
-    String alt = normalizedWithHyphen(normalized);    // "6E0123" -> "6E-0123"
-
-    Optional<Flight> opt = flightRepo.findByFlightNumber(normalized);
-    if (opt.isEmpty()) opt = flightRepo.findByFlightNumber(alt);
-
-    Flight f = opt.orElseThrow(() -> new EntityNotFoundException("Flight not found: " + code));
-
-    Airline airline = f.getAirline();
-    TailNumber tail = f.getTailNumber();
-    Aircraft ac = (tail != null) ? tail.getAircraftType() : null;
-
-    return new FlightLookupResponse(
-      airline != null ? airline.getName() : null,
-      f.getOrigin() != null ? f.getOrigin().getIataCode() : null,
-      f.getDestination() != null ? f.getDestination().getIataCode() : null,
-      f.getScheduledDeparture() != null ? ISO.format(f.getScheduledDeparture()) : null,
-      f.getScheduledArrival() != null ? ISO.format(f.getScheduledArrival()) : null,
-      tail != null ? tail.getTailNumber() : null,
-      ac != null ? ac.getModel() : null,
-      ac != null ? ac.getBrand() : null,
-      ac != null ? ac.getSeatLayoutJson() : null,
-      ac != null ? ac.getPaxNumber() : null,
-      ac != null ? ac.getRangeKm() : null
+    var dto = new AirportLookupResponse(
+            result.ap().getIataCode(),
+            result.ap().getCity(),
+            result.runwayIdents(),
+            result.airlineNames(),
+            result.destinations(),
+            result.localTime(),
+            nearbyDtos
     );
+
+    return ResponseEntity.ok(dto);
   }
 
-  private TailLookupResponse lookupTail(String code) {
-    String normalized = normalizeTail(code); // e.g., "vt-ilo" -> "VT-ILO" and also check "VTILO"
-    String alt = normalized.replace("-", "");
-
-    Optional<TailNumber> opt = tailRepo.findByTailNumber(normalized);
-    if (opt.isEmpty()) opt = tailRepo.findByTailNumber(alt);
-
-    TailNumber t = opt.orElseThrow(() -> new EntityNotFoundException("Tail not found: " + code));
-
-    Airline airline = t.getAirline();
-    Aircraft ac = t.getAircraftType();
-
-    return new TailLookupResponse(
-      airline != null ? airline.getName() : null,
-      t.getCountry(),
-      ac != null ? ac.getModel() : null,
-      ac != null ? ac.getBrand() : null,
-      ac != null ? ac.getPaxNumber() : null,
-      ac != null ? ac.getRangeKm() : null,
-      ac != null ? ac.getSeatLayoutJson() : null
-    );
+  private static List<NearbyAirportDTO> mapNearby(List<AirportDistanceProjection> src) {
+    if (src == null) return List.of();
+    return src.stream()
+            .map(p -> new NearbyAirportDTO(
+                    p.getIataCode(),
+                    p.getCity(),
+                    p.getDistanceKm() == null ? 0.0 : p.getDistanceKm()
+            ))
+            .toList();
   }
 
-  private AirportLookupResponse lookupAirport(String code) {
-    Airport ap = airportRepo.findByIataCode(code.toUpperCase())
-            .orElseThrow(() -> new EntityNotFoundException("Airport not found: " + code));
 
-    List<String> runways = runwayRepo.findByAirport(ap).stream()
-            .map(Runway::getIdentifier).toList();
 
-    List<String> airlines = flightRepo.findAirlinesServing(ap).stream()
-            .filter(Objects::nonNull)
-            .map(Airline::getName)
-            .sorted(String.CASE_INSENSITIVE_ORDER)
-            .toList();
+  // ---------- HTML (Browser) ----------
+  @GetMapping(value = "/{code}", produces = MediaType.TEXT_HTML_VALUE)
+  public String airportHtml(@PathVariable String code, Model model) {
+    var vm = loadAirportViewModel(code);
+    model.addAttribute("ap", vm.ap());
+    model.addAttribute("runways", vm.runways());
+    model.addAttribute("airlines", vm.airlines());
+    model.addAttribute("destinations", vm.destinations());
+    model.addAttribute("localTime", vm.localTime());
+    model.addAttribute("nearby", vm.nearby());
+    return "airport"; // renders src/main/resources/templates/airport.html
+  }
 
-//    List<String> destinations = flightRepo.findConnectedAirports(ap).stream()
-//        .filter(Objects::nonNull)
-//        .map(Airport::getIataCode)
-//        .sorted(String.CASE_INSENSITIVE_ORDER)
-//        .toList();
+  // ---------- Shared loader for both endpoints ----------
+  private ViewModel loadAirportViewModel(String code) {
+    Airport ap = airportRepo.findByIataCodeIgnoreCase(code)
+        .orElseThrow(() -> new EntityNotFoundException("Airport not found: " + code));
 
-    List<String> destinations = flightRepo.findConnectedIataCodes(ap).stream()
-            .filter(Objects::nonNull)
-            .sorted(String.CASE_INSENSITIVE_ORDER)
-            .toList();
-    ZoneId zone = ZoneId.of(ap.getTimeZoneId());
+    var runways = runwayRepo.findByAirport(ap);
+
+    var airlines = flightRepo.findAirlinesServing(ap); // List<Airline>
+    var airlineNames = airlines.stream()
+        .filter(Objects::nonNull)
+        .map(Airline::getName)
+        .sorted(String.CASE_INSENSITIVE_ORDER)
+        .toList();
+
+    // Use your existing connected IATA query
+    var destinations = flightRepo.findConnectedIataCodes(ap).stream()
+        .filter(Objects::nonNull)
+        .sorted(String.CASE_INSENSITIVE_ORDER)
+        .toList();
+
+    var localTime = formatLocalTime(ap.getTimeZoneId());
+
+    var nearby = (ap.getLatitude() == null || ap.getLongitude() == null)
+        ? List.<AirportDistanceProjection>of()
+        : svc.nearestAirports(ap, 5);
+
+    return new ViewModel(ap, runways, airlines, airlineNames, destinations, localTime, nearby);
+  }
+
+  private String formatLocalTime(String zoneId) {
+    if (zoneId == null || zoneId.isBlank()) return "—";
+    ZoneId zone = ZoneId.of(zoneId);
     ZonedDateTime now = ZonedDateTime.now(zone);
-
-// Format: "Saturday, 25 Oct 2025, 03:40 AM IST (Asia/Kolkata)"
-    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy, hh:mm a z '('VV')'", Locale.ENGLISH);
-    String nowLocal = now.format(fmt);
-    return new AirportLookupResponse(ap.getIataCode(), ap.getCity(), runways, airlines, destinations, nowLocal);
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern(
+        "EEEE, dd MMM yyyy, hh:mm a z '('VV')'", Locale.ENGLISH);
+    return now.format(fmt);
   }
 
-  private static String normalizeFlight(String s) {
-    String u = s.toUpperCase(Locale.ROOT);
-    return u.replace("-", "");
-  }
-
-  private static String normalizedWithHyphen(String normalizedNoHyphen) {
-    // Insert a hyphen after first 2 chars to try alternate storage
-    if (normalizedNoHyphen.length() >= 3) {
-      return normalizedNoHyphen.substring(0, 2) + "-" + normalizedNoHyphen.substring(2);
+  // Small internal carrier for both JSON/HTML
+  private record ViewModel(
+          Airport ap,
+          List<Runway> runways,
+          List<Airline> airlines,
+          List<String> runwayIdents,
+          List<String> destinations,
+          String localTime,
+          List<AirportDistanceProjection> nearby
+  ) {
+    // ✅ Convenience constructor (NOT canonical): no runwayIdents param
+    ViewModel(
+            Airport ap,
+            List<Runway> runways,
+            List<Airline> airlines,
+            List<String> destinations,
+            String localTime,
+            List<AirportDistanceProjection> nearby
+    ) {
+      this(
+              ap,
+              runways,
+              airlines,
+              runways.stream().map(Runway::getIdentifier).toList(), // compute here
+              destinations,
+              localTime,
+              nearby
+      );
     }
-    return normalizedNoHyphen;
+
+    // Helper derived view
+    List<String> airlineNames() {
+      return airlines.stream().map(Airline::getName).toList();
+    }
   }
 
-  private static String normalizeTail(String s) {
-    String u = s.toUpperCase(Locale.ROOT);
-    // Prefer "AA-ABC" style as primary
-    if (!u.contains("-") && u.length() >= 3) {
-      return u.substring(0, 2) + "-" + u.substring(2);
-    }
-    return u;
-  }
 }

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title th:text="'Airport ' + ${ap.iataCode}">Airport</title>
+    <style>
+        *{box-sizing:border-box}
+        body{font-family:ui-sans-serif,system-ui,Segoe UI,Inter,Arial;margin:0;background:#0b1020;color:#e7ecff}
+        .wrap{max-width:1100px;margin:0 auto;padding:24px}
+        .card{background:#121938;border:1px solid #223;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+        h1{font-size:24px;margin:0 0 16px}
+        h2{font-size:18px;margin:0 0 12px}
+        .pill{background:#1b2449;border:1px solid #2b376b;padding:6px 10px;border-radius:999px;display:inline-block}
+        table{width:100%;border-collapse:collapse}
+        th,td{padding:8px 10px;border-bottom:1px solid #223;text-align:left}
+        a{color:#9ec5ff;text-decoration:none}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="card">
+        <h1>
+            <span th:text="${ap.iataCode}">IATA</span>
+            •
+            <span th:text="${ap.city}">City</span>
+        </h1>
+        <div class="pill" th:text="'Local time: ' + ${localTime}">Local time</div>
+        <span th:if="${ap.timeZoneId != null}">
+      &nbsp;<div class="pill" th:text="'TZ: ' + ${ap.timeZoneId}">TZ</div>
+    </span>
+    </div>
+
+    <div class="grid">
+        <!-- Runways -->
+        <div class="card">
+            <h2>Runways</h2>
+            <table>
+                <thead>
+                <tr><th>Identifier</th><th>Length (m)</th><th>Width (m)</th><th>Surface</th></tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(runways)}">
+                    <td colspan="4">No runways</td>
+                </tr>
+                <tr th:each="r : ${runways}">
+                    <td th:text="${r.identifier}">09/27</td>
+                    <td th:text="${r.lengthMeters} ?: '-'">-</td>
+                    <td th:text="${r.widthMeters}  ?: '-'">-</td>
+                    <td th:text="${r.surface}      ?: '-'">-</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Airlines -->
+        <div class="card">
+            <h2 th:text="'Airlines serving ' + ${ap.iataCode}">Airlines</h2>
+            <table>
+                <thead><tr><th>Airline</th></tr></thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(airlines)}">
+                    <td>No airlines found</td>
+                </tr>
+                <tr th:each="a : ${airlines}">
+                    <td th:text="${a.name}">Airline</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Destinations -->
+        <div class="card">
+            <h2>Destinations</h2>
+            <table>
+                <thead><tr><th>IATA</th></tr></thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(destinations)}">
+                    <td>No destinations</td>
+                </tr>
+                <tr th:each="d : ${destinations}">
+                    <td>
+                        <a th:href="@{/{code}(code=${d})}" th:text="${d}">IATA</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Nearby airports -->
+        <div class="card">
+            <h2>Nearby Airports</h2>
+            <table>
+                <thead><tr><th>IATA</th><th>City</th><th>Distance (km)</th></tr></thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(nearby)}">
+                    <td colspan="3">No nearby airports</td>
+                </tr>
+                <tr th:each="n : ${nearby}">
+                    <td><a th:href="@{/{code}(code=${n.iataCode})}" th:text="${n.iataCode}">IATA</a></td>
+                    <td th:text="${n.city}">City</td>
+                    <td th:text="${n.distanceKm != null
+               ? #numbers.formatDecimal(n.distanceKm, 1, 'POINT', 3, 'COMMA')
+               : '—'}">
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</div>
+</body>
+</html>

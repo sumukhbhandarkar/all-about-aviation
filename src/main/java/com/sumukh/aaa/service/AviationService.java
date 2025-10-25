@@ -136,6 +136,12 @@ public class AviationService {
       .build());
   }
 
+  @Transactional(readOnly = true)
+  public List<AirportDistanceProjection> nearestAirports(Airport ap, int limit) {
+    // query already limits to 5; limit param kept for future flexibility
+    return airportRepo.findNearestAirports(ap.getLatitude(), ap.getLongitude(), ap.getIataCode());
+  }
+
   // Flights
   public Flight createFlight(CreateFlightDTO dto) {
     flightRepo.findByFlightNumber(dto.flightNumber()).ifPresent(f -> {
